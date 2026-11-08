@@ -1,36 +1,17 @@
 # Tụi Mình Chơi — Săn Số (MVP)
 
-Mini game cho hai người: tìm và khoanh các số 1 → 100 trên một trang giấy vở học sinh. Mỗi số được khoanh thuộc về người bấm đúng trước; cuối ván, ai được nhiều điểm hơn sẽ thắng.
+Tranh tìm và khoanh các số từ 01 đến 100. Ai chạm đúng số tiếp theo đầu tiên được 1 điểm; khi hết 100 số, ai được nhiều điểm hơn sẽ thắng.
 
-## Chơi ngay
+## Cách chơi
 
-- Mở `index.html` trên trình duyệt để chơi chung một màn hình (chọn màu bút trước khi bấm).
-- Để **chơi trên hai thiết bị**: đưa `index.html` lên một địa chỉ HTTPS (ví dụ Netlify Drop), máy A chọn **Tạo phòng**, máy B mở link mời hoặc nhập mã 6 ký tự, máy A bấm **Bắt đầu**.
-- Chơi chung máy có thể chọn bút hồng/xanh bằng các nút trên màn hình, hoặc phím `A`/`L` trên máy tính.
-- Hai người cùng thi trên một trang số ngẫu nhiên mới mỗi ván, có điểm, đồng hồ, gợi ý, âm thanh, hiệu ứng kết thúc.
+- **Hai điện thoại (khuyến nghị):** Máy A tạo phòng, máy B mở link mời hoặc nhập mã 6 ký tự. Hai bên xem cùng một bộ 100 số. Chủ phòng chốt kết quả qua WebRTC.
+- **Chung một tablet / màn hình rộng:** Hai trang vở **giống hệt nhau** chia đôi màn hình, phía hồng là người 1, phía xanh là người 2. Mỗi vùng cảm ứng nhận điểm tự động, không chọn bút và không đổi lượt. Các sự kiện pointerdown hỗ trợ hai ngón tay đồng thời. Đã kiểm thử chức năng tại độ rộng 820px. Trên điện thoại nhỏ, chế độ này được chặn và gợi ý chơi hai máy.
 
-## Deploy trong 1 phút
+Mã nguồn là một file HTML tĩnh, không cần npm, database hoặc tài khoản. Có âm thanh, đồng hồ, gợi ý, hiệu ứng và chơi lại.
 
-1. Mở https://app.netlify.com/drop
-2. Kéo thư mục `couple-games` hoặc tệp ZIP `couple-games.zip` lên trang.
-3. Nhận URL HTTPS `*.netlify.app` và gửi cho người thương.
+## Giới hạn MVP
 
-Trang web này là site tĩnh (HTML/CSS/JS), không cần npm, build, database hay tài khoản để chơi.
-
-## Kiến trúc / giới hạn MVP
-
-- Online P2P/WebRTC qua [PeerJS](https://peerjs.com/) (dùng PeerJS Cloud miễn phí làm signaling); sau khi kết nối, dữ liệu game gửi trực tiếp giữa hai trình duyệt, chủ phòng là nơi chốt điểm.
-- Internet cần thiết cho ghép đôi, PeerJS Cloud và Google Fonts. Chế độ chơi chung máy có thể chạy mà không cần dịch vụ signaling.
-- Chỉ tối đa 2 người / phòng, phòng tồn tại khi chủ phòng giữ tab mở. Phòng không được lưu lại; rời tab sẽ ngắt kết nối.
-- Chơi online thực tế có thể gặp vấn đề trên các mạng NAT nghiêm ngặt do chưa có TURN relay dự phòng. Nếu triển khai quy mô lớn cần signaling riêng/TURN và server-authoritative.
-- Không có account/chat/storage. Link mời nên được chia sẻ riêng tư.
-
-## Điểm cần lưu ý
-
-Nếu một số trình duyệt chặn WebRTC hoặc PeerJS Cloud gặp sự cố, chức năng online có thể không kết nối được. Để dùng lâu dài và ổn định, nên chuyển sang realtime backend (Supabase/Firebase/WebSocket server).
-
-## Mobile/tablet
-
-- Có breakpoint riêng cho màn hình nhỏ và tablet; trên mobile thanh “ĐANG SĂN SỐ” nằm ngay phía trên giấy và bám khi cuộn qua giấy để luôn nhìn thấy số cần tìm.
-- Không có yêu cầu cài app; mở bằng Chrome hoặc Safari trên điện thoại/tablet.
-- Trải nghiệm hai thiết bị thực tế phụ thuộc PeerJS Cloud và mạng của cả hai bên.
+- Online sử dụng PeerJS Cloud làm signaling và WebRTC. Hai máy cần internet, TURN relay chưa có nên một số mạng sẽ không kết nối thành công.
+- Chủ phòng chốt điểm theo thời điểm nhận tín hiệu, vì vậy online chưa bù trễ mạng và chưa đạt công bằng tuyệt đối.
+- Phòng sẽ ngắt khi chủ phòng đóng tab. Chưa kiểm thử online end-to-end trên hai thiết bị thật.
+- Tablet split-screen đã kiểm thử input từng vùng, đồng bộ điểm và từ chối số đã giành. Không yêu cầu chọn bút trước khi thao tác.
