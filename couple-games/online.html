@@ -33,7 +33,7 @@ h1{font-size:clamp(30px,5vw,51px);letter-spacing:-2px;margin:25px 0 7px}h1 span{
 .score b{font-size:30px;display:block;line-height:1.4}.score span{font-size:11px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .statusbar{position:sticky;top:5px;z-index:10;background:#fffef9f5;backdrop-filter:blur(16px);border:1px solid #eadfd0;border-radius:14px;padding:10px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 7px 20px #3c343315}
 .nowbox{min-width:80px;text-align:center}.nowbox small{display:block;font-size:9px;font-weight:800;letter-spacing:1px;color:#9b8f7e}.nowbox strong{font-size:34px;color:#d87383;line-height:1.2}
-#gameMessage{font-size:11px;color:#777;line-height:1.5;flex:1;text-align:right}.progress{height:6px;border-radius:6px;background:#eee6dd;margin:12px 0 18px;overflow:hidden}.progress>i{display:block;height:100%;background:#db8896;width:0;transition:width .2s}
+#gameMessage{font-size:11px;color:#777;line-height:1.5;flex:1;text-align:right}.net-status{min-width:76px;white-space:nowrap;text-align:right;font-size:9px;color:#718378;font-weight:700}.num.pending:after{border-style:dashed;border-width:3px;opacity:.7}.num.pending span{color:#b86b83}.progress{height:6px;border-radius:6px;background:#eee6dd;margin:12px 0 18px;overflow:hidden}.progress>i{display:block;height:100%;background:#db8896;width:0;transition:width .2s}
 .paper{position:relative;background:#fffefb;border:1px solid #ebe5db;box-shadow:4px 9px 25px #564b4320;border-radius:6px;padding:23px 15px 15px 43px;max-width:780px;margin:0 auto 15px;transform:rotate(-.25deg)}
 .paper::before{content:"";position:absolute;top:0;bottom:0;left:33px;border-left:1px solid #f4b2b5}
 .paper::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(transparent 0 30px,#dbe9f3 31px,transparent 32px);opacity:.6}
@@ -90,7 +90,7 @@ h1{font-size:clamp(30px,5vw,51px);letter-spacing:-2px;margin:25px 0 7px}h1 span{
 </div></section>
 <section id="gameScreen" class="hidden">
 <div id="battleDock" class="battlebox hidden"><div class="battlehead"><span>🪳 Gián Bom</span><span id="hp1">HP 100</span><div class="hpbar"><i id="hpBar1" style="width:100%"></i></div><span>⚔️</span><div class="hpbar right"><i id="hpBar2" style="width:100%"></i></div><span id="hp2">100 HP</span><button id="toggleBattle" title="Thu gọn chiến trường">⌃</button></div><div id="lanes" class="lanes"><div class="lane"></div><div class="lane"></div><div class="lane"></div></div></div>
-<div class="statusbar"><div class="nowbox"><small>SỐ CẦN TÌM</small><strong id="next">01</strong></div><div id="gameMessage">Ai khoanh nhanh nhất được điểm ♡</div></div>
+<div class="statusbar"><div class="nowbox"><small>SỐ CẦN TÌM</small><strong id="next">01</strong></div><div id="gameMessage">Ai khoanh nhanh nhất được điểm ♡</div><small id="netStatus" class="net-status">⏱ Đang đo...</small></div>
 <div class="scorebar" id="scores"></div><div class="progress"><i id="progress"></i></div>
 <div class="paper"><div class="paperhead"><span class="wobbly"></span><span>Trang vở tụi mình ♡</span></div><div id="board" role="group" aria-label="Bảng 100 số"></div></div>
 <div id="endbar" class="hidden"><h2 id="winnerText">Hết ván!</h2><div class="actions"><button id="againBtn" class="primary">↻ Chơi lại</button><button class="secondary" id="homeBtn">← Trang đầu</button></div></div>
@@ -100,12 +100,12 @@ h1{font-size:clamp(30px,5vw,51px);letter-spacing:-2px;margin:25px 0 7px}h1 span{
 <script>
 (()=>{'use strict';
 const $=id=>document.getElementById(id),API='/api/room';
-const me={code:'',token:'',role:'',playerId:0,room:null,busy:false,timer:null,boardSeed:0,round:0,joinPending:false};
+const me={code:'',token:'',role:'',playerId:0,room:null,serverRoom:null,busy:false,timer:null,pollGeneration:0,pollInFlight:false,pollFailures:0,pending:[],sending:false,rtt:0,clockOffset:0,boardSeed:0,round:0,joinPending:false};
 let toastTimer=null;
 function showToast(message){const t=$('toast');t.textContent=message;t.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('visible'),3000);}
 function notice(message){$('notice').textContent=message;$('notice').classList.remove('hidden');$('notice').classList.add('error');showToast(message);}
 function busy(button,on){button.disabled=on;button.dataset.oldText=button.dataset.oldText||button.textContent;button.textContent=on?'Đang kết nối...':button.dataset.oldText;}
-async function api(data){const ctrl=new AbortController(),timeout=setTimeout(()=>ctrl.abort(),14000);try{const res=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify(data),signal:ctrl.signal});let payload;try{payload=await res.json();}catch(e){throw new Error('Máy chủ trả về dữ liệu không hợp lệ ('+res.status+').');}if(!res.ok)throw new Error(payload.error||'Lỗi máy chủ ('+res.status+')');return payload;}catch(e){if(e.name==='AbortError')throw new Error('Máy chủ phòng phản hồi quá chậm. Kiểm tra mạng và thử lại.');throw e;}finally{clearTimeout(timeout);}}
+async function api(data){const started=performance.now(),ctrl=new AbortController(),timeout=setTimeout(()=>ctrl.abort(),14000);try{const res=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify(data),signal:ctrl.signal});let payload;try{payload=await res.json();}catch(e){throw new Error('Máy chủ trả về dữ liệu không hợp lệ ('+res.status+').');}if(!res.ok)throw new Error(payload.error||'Lỗi máy chủ ('+res.status+')');return payload;}catch(e){if(e.name==='AbortError')throw new Error('Máy chủ phòng phản hồi quá chậm. Kiểm tra mạng và thử lại.');throw e;}finally{clearTimeout(timeout);const elapsed=Math.round(performance.now()-started);me.rtt=me.rtt?Math.round(me.rtt*.65+elapsed*.35):elapsed;}}
 function save(){try{sessionStorage.setItem('cg-online:'+me.code,JSON.stringify({token:me.token,role:me.role,playerId:me.playerId}));}catch(e){}}
 function getStored(code){try{return JSON.parse(sessionStorage.getItem('cg-online:'+code)||'null');}catch(e){return null;}}
 function codeLink(){const url=new URL('/online.html',location.href);url.searchParams.set('room',me.code);return url.href;}
@@ -133,56 +133,167 @@ function buildBoard(seed){
  btn.addEventListener('click',()=>claim(i,btn));frag.append(btn);}
  $('board').replaceChildren(frag);me.boardSeed=seed;
 }
+const unitsOnScreen=new Map();
 function renderBattle(b){
- if(!b)return;$('hp1').textContent='HP '+b.hp[0];$('hp2').textContent=b.hp[1]+' HP';
+ if(!b)return;
+ $('hp1').textContent='HP '+b.hp[0];$('hp2').textContent=b.hp[1]+' HP';
  $('hpBar1').style.width=b.hp[0]+'%';$('hpBar2').style.width=b.hp[1]+'%';
- const lanes=Array.from($('lanes').children);for(const lane of lanes)lane.replaceChildren();
- for(const u of b.units||[]){const el=document.createElement('span');el.className='bug';el.textContent=u.hp>1?'🪳💥':'🪳💣';el.style.left=Math.max(2,Math.min(98,u.pos*100))+'%';el.style.filter=u.owner===1?'drop-shadow(0 1px #d87e91)':'drop-shadow(0 1px #638caf)';lanes[u.lane%3].append(el);}
+ const lanes=Array.from($('lanes').children),present=new Set();
+ for(const u of b.units||[]){
+   const key=String(u.owner)+'-'+String(u.id);present.add(key);
+   let el=unitsOnScreen.get(key);
+   if(!el){el=document.createElement('span');el.className='bug';unitsOnScreen.set(key,el);}
+   const lane=lanes[u.lane%3];
+   if(el.parentNode!==lane)lane.append(el);
+   const text=u.hp>1?'🪳💥':'🪳💣';if(el.textContent!==text)el.textContent=text;
+   el.style.left=Math.max(2,Math.min(98,u.pos*100))+'%';
+   if(el.dataset.owner!==String(u.owner)){el.style.filter=u.owner===1?'drop-shadow(0 1px #d87e91)':'drop-shadow(0 1px #638caf)';el.dataset.owner=String(u.owner);}
+ }
+ for(const [key,el]of unitsOnScreen)if(!present.has(key)){el.remove();unitsOnScreen.delete(key);}
 }
 function renderGame(){
- const r=me.room; $('setup').classList.add('hidden');$('lobby').classList.add('hidden');$('gameScreen').classList.remove('hidden');
- if(me.boardSeed!==r.seed||me.round!==r.round){buildBoard(r.seed);me.round=r.round;}
+ const r=me.room;
+ $('setup').classList.add('hidden');$('lobby').classList.add('hidden');$('gameScreen').classList.remove('hidden');
+ if(me.boardSeed!==r.seed||me.round!==r.round){
+   buildBoard(r.seed);me.round=r.round;
+   for(const el of unitsOnScreen.values())el.remove();unitsOnScreen.clear();
+ }
  $('battleDock').classList.toggle('hidden',r.variant!=='battle');
  if(r.battle)renderBattle(r.battle);
- const until=Math.ceil((r.startsAt-Date.now())/1000);
- const active=r.phase==='playing'&&until<=0;
+ const now=Date.now()+me.clockOffset;
+ const until=Math.ceil((r.startsAt-now)/1000),active=r.phase==='playing'&&until<=0;
  $('next').textContent=r.current<=100?String(r.current).padStart(2,'0'):'♡';
  $('progress').style.width=(r.current-1)+'%';
- $('gameMessage').textContent=until>0?'Bắt đầu sau '+until+' giây...':r.phase==='finished'?'Trận đã kết thúc!':r.phase==='draining'?'Đợi gián bom cuối tới đích...':me.playerId===0?'👀 Bạn đang xem trận đấu':me.busy?'Đang xác nhận điểm...':'Ai tìm đúng trước sẽ ghi điểm ♡';
- const scores=$('scores');scores.replaceChildren(...r.players.map(p=>{const node=document.createElement('div');node.className='score';node.innerHTML='<span></span><b></b>';node.querySelector('span').textContent=p.name+(p.id===me.playerId?' · Bạn':'');node.querySelector('b').textContent=r.scores[p.id-1]||0;return node;}));
+ $('netStatus').textContent=me.rtt?'API ~'+me.rtt+'ms':'⏱ Kết nối...';
+ $('gameMessage').textContent=until>0?'Bắt đầu sau '+until+' giây...':r.phase==='finished'?'Trận đã kết thúc!':r.phase==='draining'?'Đợi gián bom cuối tới đích...':me.playerId===0?'👀 Bạn đang xem trận đấu':me.pending.length?'✓ Đang xác nhận '+me.pending.length+' số...':'Ai tìm đúng trước sẽ ghi điểm ♡';
+ const scores=$('scores');
+ const currentPlayers=Array.from(scores.children).map(node=>node.dataset.playerId);
+ const incomingPlayers=r.players.map(p=>String(p.id));
+ if(currentPlayers.join(',')!==incomingPlayers.join(',')){
+   scores.replaceChildren(...r.players.map(p=>{const node=document.createElement('div');node.className='score';node.dataset.playerId=String(p.id);node.innerHTML='<span></span><b></b>';return node;}));
+ }
  scores.style.gridTemplateColumns='repeat('+Math.max(2,r.players.length)+',1fr)';
- for(const el of $('board').children){const n=Number(el.dataset.n),who=r.claims[n]||0;el.classList.toggle('owned',who>0);for(let p=1;p<=3;p++)el.classList.toggle('p'+p,who===p);el.disabled=!active||!me.playerId||who>0||me.busy;}
+ r.players.forEach((p,index)=>{const node=scores.children[index];const name=p.name+(p.id===me.playerId?' · Bạn':'');const points=String(r.scores[p.id-1]||0);const t=node.querySelector('span'),n=node.querySelector('b');if(t.textContent!==name)t.textContent=name;if(n.textContent!==points)n.textContent=points;});
+ const pend=new Set(me.pending);
+ for(const el of $('board').children){
+   const n=Number(el.dataset.n),who=r.claims[n]||0;
+   if(el.dataset.owner!==String(who)){el.dataset.owner=String(who);el.classList.toggle('owned',who>0);for(let p=1;p<=3;p++)el.classList.toggle('p'+p,who===p);}
+   el.classList.toggle('pending',pend.has(n));
+   const blocked=!active||!me.playerId||who>0||me.pending.length>=5;
+   if(el.disabled!==blocked)el.disabled=blocked;
+ }
  if(r.phase==='finished'){
- $('endbar').classList.remove('hidden');
- const winner=r.players.find(p=>p.id===r.winner);
- $('winnerText').textContent=winner?'🏆 '+winner.name+' đã thắng!':'🤝 Hòa rồi, chơi thêm ván nữa nhé!';
- $('againBtn').classList.toggle('hidden',me.role!=='host');
+   $('endbar').classList.remove('hidden');
+   const winner=r.players.find(p=>p.id===r.winner);
+   $('winnerText').textContent=winner?'🏆 '+winner.name+' đã thắng!':'🤝 Hòa rồi, chơi thêm ván nữa nhé!';
+   $('againBtn').classList.toggle('hidden',me.role!=='host');
  }else $('endbar').classList.add('hidden');
+}
+function overlayPending(r){
+ if(!me.pending.length)return r;
+ if(!['playing','draining'].includes(r.phase)){me.pending.length=0;return r;}
+ const next=[];
+ for(const n of me.pending){
+   if(n<r.current){if(r.claims[n]===me.playerId)continue;me.pending.length=0;return r;}
+   if(n>r.current+next.length){me.pending.length=0;return r;}
+   next.push(n);
+ }
+ me.pending=next;
+ if(!next.length)return r;
+ const view={...r,claims:r.claims.slice(),scores:r.scores.slice()};
+ for(const n of next){
+   if(n===view.current&&!view.claims[n]){
+     view.claims[n]=me.playerId;view.scores[me.playerId-1]++;view.current++;
+   }
+ }
+ return view;
 }
 function sync(r){
  if(!r)return;
- const old=me.room;me.room=r;
+ const oldServer=me.serverRoom;
+ if(oldServer && r.round<oldServer.round)return;
+ if(oldServer && r.round===oldServer.round && r.version<oldServer.version)return;
+ if(oldServer && r.round!==oldServer.round)me.pending.length=0;
+ const old=me.room;
+ me.serverRoom=r;me.room=overlayPending(r);
  const wasPlaying=old&&['playing','finished','draining'].includes(old.phase);
- if(r.phase==='lobby')renderLobby();else renderGame();
+ if(me.room.phase==='lobby')renderLobby();else renderGame();
  if(old&&old.phase==='lobby'&&r.phase==='playing')showToast('Trận bắt đầu ♡');
  if(wasPlaying&&old.round!==r.round)showToast('Ván mới bắt đầu!');
 }
 async function refresh(){
- if(!me.code||!me.token)return;
- try{const data=await api({action:'state',code:me.code,token:me.token});sync(data.room);}
- catch(e){if(/không.*quyền|hết hạn|không tồn tại/.test(e.message)){notice(e.message);clearInterval(me.timer);me.timer=null;}}
+ if(!me.code||!me.token||me.pollInFlight)return;
+ me.pollInFlight=true;
+ try{
+   const data=await api({action:'state',code:me.code,token:me.token});
+   me.pollFailures=0;sync(data.room);
+ }catch(e){
+   me.pollFailures++;
+   if(/không.*quyền|hết hạn|không tồn tại/.test(e.message)){
+     notice(e.message);me.pollGeneration++;clearTimeout(me.timer);me.timer=null;
+   } else if(me.pollFailures===4)showToast('Kết nối đang chậm; trò chơi sẽ tự thử lại.');
+ }finally{me.pollInFlight=false;}
 }
-function polling(){clearInterval(me.timer);me.timer=setInterval(()=>{if(!document.hidden||me.room?.phase==='lobby')refresh();},1050);refresh();}
+function pollDelay(){
+ const phase=me.room?.phase;
+ const base=document.hidden?2200:phase==='playing'||phase==='draining'?350:phase==='lobby'?800:850;
+ return Math.min(4500,base*Math.max(1,Math.min(5,me.pollFailures)));
+}
+function polling(){
+ me.pollGeneration++;const generation=me.pollGeneration;clearTimeout(me.timer);
+ async function tick(){
+   if(generation!==me.pollGeneration||!me.code||!me.token)return;
+   if(!document.hidden||me.room?.phase==='lobby')await refresh();
+   if(generation!==me.pollGeneration)return;
+   me.timer=setTimeout(tick,pollDelay());
+ }
+ tick();
+}
 async function start(action){
- if(me.busy)return;me.busy=true;try{const result=await api({action,code:me.code,token:me.token});sync(result.room);}catch(e){notice(e.message)}finally{me.busy=false;}
+ if(me.busy)return;me.busy=true;
+ try{const result=await api({action,code:me.code,token:me.token});me.pending.length=0;sync(result.room);}
+ catch(e){notice(e.message)}finally{me.busy=false;}
 }
-async function claim(n,element){
- const r=me.room;if(!r||me.busy||me.playerId===0||r.phase!=='playing'||Date.now()<r.startsAt)return;
+async function sendQueuedClaims(){
+ if(me.sending)return;
+ me.sending=true;
+ try{
+   while(me.pending.length){
+     const number=me.pending[0],round=me.serverRoom?.round;
+     if(me.serverRoom?.claims[number]===me.playerId){
+       me.pending.shift();sync(me.serverRoom);continue;
+     }
+     if(me.serverRoom && me.serverRoom.current>number && me.serverRoom.claims[number]!==me.playerId){
+       me.pending.length=0;sync(me.serverRoom);showToast('Đối phương khoanh nhanh hơn!');break;
+     }
+     try{
+       const response=await api({action:'claim',code:me.code,token:me.token,number});
+       if(me.serverRoom&&round!==me.serverRoom.round)break;
+       if(me.pending[0]===number)me.pending.shift();
+       sync(response.room);
+     }catch(e){
+       me.pending.length=0;
+       if(/đã có người khoanh/.test(e.message))showToast('Một người khác vừa nhanh hơn bạn!');
+       else showToast(e.message);
+       if(me.serverRoom)me.room=me.serverRoom;
+       await refresh();if(me.room?.phase!=='lobby'&&me.room)renderGame();
+       break;
+     }
+   }
+ }finally{
+   me.sending=false;
+   if(me.room&&me.room.phase!=='lobby')renderGame();
+ }
+}
+function claim(n,element){
+ const r=me.room;
+ if(!r||me.busy||me.playerId===0||r.phase!=='playing'||Date.now()+me.clockOffset<r.startsAt)return;
  if(n!==r.current){element.classList.remove('wrong');void element.offsetWidth;element.classList.add('wrong');return;}
- me.busy=true;renderGame();
- try{const response=await api({action:'claim',code:me.code,token:me.token,number:n});sync(response.room);}
- catch(e){if(!/đã có người khoanh/.test(e.message))showToast(e.message);await refresh();}
- finally{me.busy=false;renderGame();}
+ if(me.pending.length>=5){showToast('Đang đồng bộ, giữ nhịp một chút nhé.');return;}
+ me.pending.push(n);
+ me.room=overlayPending(me.serverRoom||r);
+ renderGame();
+ void sendQueuedClaims();
 }
 async function create(){
  if(me.busy)return;me.busy=true;busy($('createBtn'),true);
@@ -203,7 +314,7 @@ async function join(){
  history.replaceState(null,'','/online.html?room='+me.code);sync(data.room);polling();showToast('Vào phòng thành công ✓');}
  catch(e){notice(e.message)}finally{me.busy=false;busy($('joinBtn'),false);}
 }
-function home(){clearInterval(me.timer);me.timer=null;location.href='/'}
+function home(){me.pollGeneration++;clearTimeout(me.timer);me.timer=null;location.href='/'}
 $('createBtn').addEventListener('click',create);$('joinBtn').addEventListener('click',join);
 $('roomCode').addEventListener('keydown',e=>{if(e.key==='Enter')join()});
 $('startBtn').addEventListener('click',()=>start('start'));$('againBtn').addEventListener('click',()=>start('restart'));
@@ -212,9 +323,10 @@ $('copyCode').addEventListener('click',()=>copyText(me.code));
 $('shareLink').addEventListener('click',async()=>{const link=codeLink();if(navigator.share){try{await navigator.share({title:'Vào CoupleGames cùng mình ♡',url:link});return;}catch(e){}}copyText(link)});
 $('fullBtn').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch(e){showToast('Trình duyệt này chưa hỗ trợ fullscreen.')}});
 $('toggleBattle').addEventListener('click',()=>{$('lanes').classList.toggle('hidden');$('toggleBattle').textContent=$('lanes').classList.contains('hidden')?'⌄':'⌃'});
-window.addEventListener('beforeunload',()=>clearInterval(me.timer));
+window.addEventListener('beforeunload',()=>{me.pollGeneration++;clearTimeout(me.timer);});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&me.code)refresh();});
 const initial=new URLSearchParams(location.search).get('room');
 if(initial){$('roomCode').value=initial.toUpperCase();$('createCard').classList.add('hidden');const saved=getStored(initial.toUpperCase());if(saved){$('guestName').value='Đang vào lại phòng...';join();}}
-window.__coupleOnline={me,rng,buildBoard,renderGame,claim,refresh};
+window.__coupleOnline={me,rng,buildBoard,renderGame,claim,refresh,sync,overlayPending,sendQueuedClaims,pollDelay};
 })();
 </script></body></html>
