@@ -1,7 +1,7 @@
 /* CoupleGames room transport v0.3.2: first-party Vercel API, replaces PeerJS Cloud. */
 (function(){
 'use strict';
-const API='/api/room';
+const API='/api/room-v2';
 class Events {
   constructor(){this.listeners={};}
   on(type,fn){(this.listeners[type]??=[]).push(fn);return this;}
@@ -59,7 +59,7 @@ class Peer extends Events {
       if(this.host){
         if(data.guestOnline){
           if(!this.conn||this.conn.closed){const conn=new DataConnection(this);this.conn=conn;this.emit('connection',conn);queueMicrotask(()=>conn._open());}
-          for(const event of data.events||[])if(event.message&&this.conn?.open)this.conn.emit('data',event.message);
+          const incoming=(data.events||[]).filter(e=>e.message).map(e=>e.message);if(this.conn){const conn=this.conn;queueMicrotask(()=>{if(conn.open&&!conn.closed)for(const message of incoming)conn.emit('data',message);});}
         } else if(this.conn&&!this.conn.closed){this.conn.close();this.conn=null;}
         this.cursor=Math.max(this.cursor,data.cursor||0);
       } else {
