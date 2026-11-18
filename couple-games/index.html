@@ -421,11 +421,11 @@
       </div>
     </section>
   </main>
-  <footer class="shell footer"><span>© TỤI MÌNH CHƠI · v0.3.1 · Một game nho nhỏ để cười cùng nhau.</span><span class="love">made with ♡ for two</span></footer>
+  <footer class="shell footer"><span>© TỤI MÌNH CHƠI · v0.3.2 · Một game nho nhỏ để cười cùng nhau.</span><span class="love">made with ♡ for two</span></footer>
   <div id="countdown" class="countdown hidden" aria-live="assertive"><span id="countdownNumber">3</span></div>
   <div id="endOverlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="resultTitle"><div class="result-box"><div class="result-emoji" id="resultEmoji">🏆</div><div class="section-kicker">VÁN CHƠI KẾT THÚC ✦</div><div class="result-title" id="resultTitle">Tìm ra nhà vô địch!</div><div class="result-description" id="resultDesc">Thật là một cuộc rượt đuổi thú vị!</div><div class="results"><div class="result-player"><strong id="final1">0</strong><small id="finalName1">Mình</small></div><div class="result-player b"><strong id="final2">0</strong><small id="finalName2">Người ấy</small></div></div><div class="result-actions"><button class="primary" id="rematchBtn">♡ Chơi thêm một ván!</button><button class="secondary" id="resultQuit">Về trang đầu</button></div></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js" defer></script>
+  <script src="/net-shim.js"></script>
   <script>
   (()=>{'use strict';
     const $=id=>document.getElementById(id), board=$('board'), board2=$('board2'), fullscreenBtn=$('fullscreenBtn'), battleFullscreenBtn=$('battleFullscreenBtn'), battleDockToggle=$('battleDockToggle');
@@ -467,7 +467,7 @@
       const spent=new Set();for(let lane=0;lane<3;lane++){const a=units.filter(u=>u.lane===lane&&u.owner===1&&!spent.has(u.id)).sort((x,y)=>y.x-x.x),op=units.filter(u=>u.lane===lane&&u.owner===2&&!spent.has(u.id)).sort((x,y)=>x.x-y.x);for(const left of a){if(spent.has(left.id))continue;const right=op.find(r=>!spent.has(r.id)&&Math.abs(left.x-r.x)<3.4);if(!right)continue;left.hp--;right.hp--;boom((left.x+right.x)/2,lane);if(left.hp<=0)spent.add(left.id);if(right.hp<=0)spent.add(right.id);}}
       for(const u of units){if(spent.has(u.id))continue;if((u.owner===1&&u.x>=97)||(u.owner===2&&u.x<=3)){b.hp[2-u.owner]=Math.max(0,b.hp[2-u.owner]-u.damage);spent.add(u.id);boom(u.x,u.lane);}}
       b.units=units.filter(u=>!spent.has(u.id));renderBattle();if(b.hp[0]===0||b.hp[1]===0||(state.phase==='resolving'&&b.units.length===0)){endBattle();}}
-    function tickBattle(){if(state.variant!=='battle'||state.mode==='guest')return;const now=performance.now();const dt=Math.max(0,Math.min(.15,(now-battleLastTick)/1000));battleLastTick=now;stepBattle(dt);if(state.mode==='host'&&now-battleLastPush>=180){battleLastPush=now;broadcast();}}
+    function tickBattle(){if(state.variant!=='battle'||state.mode==='guest')return;const now=performance.now();const dt=Math.max(0,Math.min(.15,(now-battleLastTick)/1000));battleLastTick=now;stepBattle(dt);if(state.mode==='host'&&now-battleLastPush>=700){battleLastPush=now;broadcast();}}
     function startBattleLoop(){clearInterval(battleTimer);battleTimer=null;battleLastTick=performance.now();if(state.variant==='battle'&&state.mode!=='guest'&&(state.phase==='playing'||state.phase==='resolving'))battleTimer=setInterval(tickBattle,65);}
     function showGame(){ $('landing').classList.add('hidden');$('gameUI').style.display='block';document.body.classList.toggle('battle-immersive',state.variant==='battle');$('endOverlay').classList.add('hidden');$('countdown').classList.add('hidden');window.scrollTo({top:0,behavior:'instant'});}
     function showLanding(){ $('landing').classList.remove('hidden');$('gameUI').style.display='none';document.body.classList.remove('battle-immersive');$('endOverlay').classList.add('hidden');$('countdown').classList.add('hidden');showOnly('modeMenu');$('roomInput').value='';state.phase='landing';window.scrollTo({top:0,behavior:'instant'});}
