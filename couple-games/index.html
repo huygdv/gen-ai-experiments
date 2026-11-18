@@ -348,6 +348,22 @@
     }
 
   </style>
+<script>
+  // v0.4: route all online rooms to server-authoritative multiplayer (no PeerJS).
+  if (new URLSearchParams(location.search).has('room')) {
+    location.replace('/online.html' + location.search);
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    for (const [id,anchor] of [['chooseHost',''],['chooseJoin','#joinCard']]) {
+      const button=document.getElementById(id);
+      if (button) button.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        location.assign('/online.html' + anchor);
+      }, true);
+    }
+  });
+</script>
 </head>
 <body>
   <header class="shell topbar">
