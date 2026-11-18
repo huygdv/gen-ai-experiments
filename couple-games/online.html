@@ -60,7 +60,7 @@ h1{font-size:clamp(30px,5vw,51px);letter-spacing:-2px;margin:25px 0 7px}h1 span{
 @media(min-width:900px) and (max-height:800px){h1{margin:8px 0 4px;font-size:32px}.desc{margin-bottom:10px}.paper{padding-top:8px}#board{aspect-ratio:1.45}.scorebar{margin:6px 0}.score{padding:3px}.score b{font-size:23px}}
 </style></head>
 <body><div class="wrap">
-<header><a href="/">♡ couplegames</a><small>Phòng online · Săn Số</small><button id="fullBtn" class="secondary">⛶ Toàn màn hình</button></header>
+<header><a href="/">♡ couplegames</a><small>Online v0.4.1 · Fast Sync</small><button id="fullBtn" class="secondary">⛶ Toàn màn hình</button></header>
 <section id="setup">
 <h1>Hai đứa, ba đứa, <span>cùng chơi!</span></h1><p class="desc">Khoanh số từ 01 đến 100. Ai tìm đúng trước sẽ ghi điểm. Chủ phòng có thể ngồi xem và cổ vũ ♡</p>
 <div class="card" id="createCard"><h2>Tạo phòng mới ✦</h2>
@@ -105,7 +105,7 @@ let toastTimer=null;
 function showToast(message){const t=$('toast');t.textContent=message;t.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('visible'),3000);}
 function notice(message){$('notice').textContent=message;$('notice').classList.remove('hidden');$('notice').classList.add('error');showToast(message);}
 function busy(button,on){button.disabled=on;button.dataset.oldText=button.dataset.oldText||button.textContent;button.textContent=on?'Đang kết nối...':button.dataset.oldText;}
-async function api(data){const started=performance.now(),ctrl=new AbortController(),timeout=setTimeout(()=>ctrl.abort(),14000);try{const res=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify(data),signal:ctrl.signal});let payload;try{payload=await res.json();}catch(e){throw new Error('Máy chủ trả về dữ liệu không hợp lệ ('+res.status+').');}if(!res.ok)throw new Error(payload.error||'Lỗi máy chủ ('+res.status+')');return payload;}catch(e){if(e.name==='AbortError')throw new Error('Máy chủ phòng phản hồi quá chậm. Kiểm tra mạng và thử lại.');throw e;}finally{clearTimeout(timeout);const elapsed=Math.round(performance.now()-started);me.rtt=me.rtt?Math.round(me.rtt*.65+elapsed*.35):elapsed;}}
+async function api(data){const started=performance.now(),ctrl=new AbortController(),timeout=setTimeout(()=>ctrl.abort(),14000);try{const res=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify(data),signal:ctrl.signal});let payload;try{payload=await res.json();}catch(e){throw new Error('Máy chủ trả về dữ liệu không hợp lệ ('+res.status+').');}if(!res.ok)throw new Error(payload.error||'Lỗi máy chủ ('+res.status+')');if(payload.room?.serverTime){const offset=payload.room.serverTime+(performance.now()-started)/2-Date.now();me.clockOffset=me.clockOffset?Math.round(me.clockOffset*.7+offset*.3):Math.round(offset);}return payload;}catch(e){if(e.name==='AbortError')throw new Error('Máy chủ phòng phản hồi quá chậm. Kiểm tra mạng và thử lại.');throw e;}finally{clearTimeout(timeout);const elapsed=Math.round(performance.now()-started);me.rtt=me.rtt?Math.round(me.rtt*.65+elapsed*.35):elapsed;}}
 function save(){try{sessionStorage.setItem('cg-online:'+me.code,JSON.stringify({token:me.token,role:me.role,playerId:me.playerId}));}catch(e){}}
 function getStored(code){try{return JSON.parse(sessionStorage.getItem('cg-online:'+code)||'null');}catch(e){return null;}}
 function codeLink(){const url=new URL('/online.html',location.href);url.searchParams.set('room',me.code);return url.href;}
@@ -164,7 +164,7 @@ function renderGame(){
  const until=Math.ceil((r.startsAt-now)/1000),active=r.phase==='playing'&&until<=0;
  $('next').textContent=r.current<=100?String(r.current).padStart(2,'0'):'♡';
  $('progress').style.width=(r.current-1)+'%';
- $('netStatus').textContent=me.rtt?'API ~'+me.rtt+'ms':'⏱ Kết nối...';
+ $('netStatus').textContent=me.rtt?'Phản hồi ~'+me.rtt+'ms':'⏱ Kết nối...';
  $('gameMessage').textContent=until>0?'Bắt đầu sau '+until+' giây...':r.phase==='finished'?'Trận đã kết thúc!':r.phase==='draining'?'Đợi gián bom cuối tới đích...':me.playerId===0?'👀 Bạn đang xem trận đấu':me.pending.length?'✓ Đang xác nhận '+me.pending.length+' số...':'Ai tìm đúng trước sẽ ghi điểm ♡';
  const scores=$('scores');
  const currentPlayers=Array.from(scores.children).map(node=>node.dataset.playerId);
@@ -243,9 +243,9 @@ function polling(){
  me.pollGeneration++;const generation=me.pollGeneration;clearTimeout(me.timer);
  async function tick(){
    if(generation!==me.pollGeneration||!me.code||!me.token)return;
-   if(!document.hidden||me.room?.phase==='lobby')await refresh();
+   const started=performance.now();if(!document.hidden||me.room?.phase==='lobby')await refresh();
    if(generation!==me.pollGeneration)return;
-   me.timer=setTimeout(tick,pollDelay());
+   me.timer=setTimeout(tick,Math.max(90,pollDelay()-(performance.now()-started)));
  }
  tick();
 }
