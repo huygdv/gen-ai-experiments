@@ -525,9 +525,10 @@
       function fail(message){if(!valid())return;done=true;clearTimers();$('lobbyStatus').textContent=message;toast(message);}
       function retry(){if(!valid()||retryTimer)return;clearTimeout(watchTimer);watchTimer=null;
         if(attempts>=maxAttempts){fail('Không kết nối được phòng sau 5 lần. Hãy kiểm tra mã và giữ máy chủ tại màn hình phòng sẵn sàng.');return;}
-        try{activeConn?.close();}catch(e){}
+        const failedConn=activeConn;activeConn=null;
         $('lobbyStatus').textContent='Phòng chưa phản hồi · đang thử lại ('+(attempts+1)+'/'+maxAttempts+')...';
         retryTimer=setTimeout(()=>{retryTimer=null;connectToHost();},Math.min(950+attempts*400,2500));
+        try{failedConn?.close();}catch(e){}
       }
       function connectToHost(){if(!valid())return;
         if(!peer.open||peer.disconnected){$('lobbyStatus').textContent='Đang chờ máy chủ signaling phản hồi...';retryTimer=setTimeout(()=>{retryTimer=null;connectToHost();},1700);return;}
