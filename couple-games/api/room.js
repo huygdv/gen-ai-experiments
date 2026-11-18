@@ -7,7 +7,7 @@ const TTL=2*60*60*1000;
 const path=code=>'couplegames/rooms-v4/'+code+'.json';
 const hash=s=>createHash('sha256').update(String(s)).digest('hex');
 const nick=s=>String(s||'').trim().replace(/[<>]/g,'').slice(0,20)||'Người chơi';
-const send=(res,status,data)=>res.status(status).json(data);
+const send=(res,status,data)=>{if(status===200&&data?.room)data.room.serverTime=Date.now();return res.status(status).json(data);};
 const code6=()=>Array.from(randomBytes(6),b=>ALPHABET[b%ALPHABET.length]).join('');
 const token=()=>randomUUID()+randomUUID();
 const pause=ms=>new Promise(done=>setTimeout(done,ms));
@@ -105,7 +105,7 @@ async function transact(code,handler){
 export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store, max-age=0');
   res.setHeader('X-Content-Type-Options','nosniff');
-  if(req.method==='GET')return send(res,200,{ok:true,version:'0.4.0',storage:!!process.env.BLOB_READ_WRITE_TOKEN});
+  if(req.method==='GET')return send(res,200,{ok:true,version:'0.4.1',storage:!!process.env.BLOB_READ_WRITE_TOKEN});
   if(req.method!=='POST')return send(res,405,{error:'Method not allowed'});
   if(!process.env.BLOB_READ_WRITE_TOKEN)return send(res,503,{error:'Máy chủ chưa có kho dữ liệu phòng.'});
   let data;try{data=typeof req.body==='string'?JSON.parse(req.body):req.body||{};}catch(e){return send(res,400,{error:'Dữ liệu không hợp lệ.'});}
