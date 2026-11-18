@@ -13,7 +13,7 @@ async function load(code) {
   const blob = await get(pathFor(code), { access:'private', useCache:false });
   if (!blob) return null;
   const room = await new Response(blob.stream).json();
-  return {room,etag:blob.etag};
+  const etag=blob.blob?.etag||blob.etag; if(!etag)throw Error('Blob ETag unavailable'); return {room,etag};
 }
 async function change(code,op) {
   for (let i=0;i<10;i++) {
