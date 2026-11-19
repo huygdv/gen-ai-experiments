@@ -71,8 +71,8 @@ export class CoupleRoom extends DurableObject {
         const attachment=ws.deserializeAttachment();
         if(!attachment?.hash)continue;
         socketSend(ws,payload);
-        if(!roleOf(result.room,attachment.hash)){
-          try{ws.close(4003,'Session revoked');}catch(_){}
+        if(result.room.phase==='closed'||!roleOf(result.room,attachment.hash)){
+          try{ws.close(4003,result.room.phase==='closed'?'Room closed':'Session revoked');}catch(_){}
         }
       }
     }
@@ -84,6 +84,7 @@ export class CoupleRoom extends DurableObject {
     const room=await this.ctx.storage.get('room');
     if(!room||room.phase==='closed'||Date.now()>=room.expiresAt)
       return fail(410,'CLOSED','Phòng đã đóng');
+    if(this.ctx.getWebSockets().length>=16)return fail(429,'SOCKET_CAP','Phòng có quá nhiều kết nối mở');
     const pair=new WebSocketPair(),[client,server]=Object.values(pair);
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment({hash:null,latestClientSeq:0});
@@ -103,13 +104,21 @@ export class CoupleRoom extends DurableObject {
       socketSend(ws,{type:'room.snapshot',role:actor.role,playerId:actor.id,room:snapshot(room)});
       return;
     }
-    if(msg.type==='ping'){socketSend(ws,{type:'pong',seq:msg.seq||0,serverTime:Date.now()});return;}
+    if(msg.type==='ping'){
+      const now=Date.now();
+      if(now-(session.lastPingAt||0)<2000)return;
+      ws.serializeAttachment({...session,lastPingAt:now});
+      socketSend(ws,{type:'pong',seq:msg.seq||0,serverTime:now});return;
+    }
     if(msg.type!=='action'){socketSend(ws,{type:'action.rejected',code:'UNKNOWN_ACTION'});return;}
     const clientSeq=Number(msg.clientSeq);
     if(!Number.isSafeInteger(clientSeq)||clientSeq<=session.latestClientSeq){
       socketSend(ws,{type:'action.rejected',code:'DUPLICATE',clientSeq});return;
     }
-    ws.serializeAttachment({...session,latestClientSeq:clientSeq});
+    const now=Date.now();
+    const credit=Math.min(12,(session.credit??12)+(Math.max(0,now-(session.lastInputAt||now))*.012));
+    if(credit<1){socketSend(ws,{type:'action.rejected',code:'RATE_LIMIT',clientSeq,message:'Thao tác quá nhanh'});return;}
+    ws.serializeAttachment({...session,latestClientSeq:clientSeq,credit:credit-1,lastInputAt:now});
     const action=String(msg.action||'');
     if(!['claim','emote','leave','close','lock','kick','start','rematch'].includes(action)){
       socketSend(ws,{type:'action.rejected',code:'INVALID_ACTION',clientSeq});return;
