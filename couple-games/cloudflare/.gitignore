@@ -1,0 +1,19 @@
+# Cloudflare / local secrets and state
+node_modules/
+.wrangler/
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.log
+*.sqlite
+*.sqlite3
+*.db
+coverage/
+dist/
+.tmp/
+.DS_Store
