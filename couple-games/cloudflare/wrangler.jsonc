@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "couplegames-rooms",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-19",
+  "durable_objects": {
+    "bindings": [{"name": "ROOMS", "class_name": "CoupleRoom"}]
+  },
+  "migrations": [{"tag": "v1", "new_sqlite_classes": ["CoupleRoom"]}],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "vars": {
+    "ALLOWED_ORIGIN": "https://couplegames-vn.vercel.app"
+  }
+}
