@@ -1,3 +1,5 @@
+> **Cross-device team handoff (2026-11-19):** Start with [AGENTS.md](AGENTS.md), [CLAUDE.md](CLAUDE.md), [HANDOFF](docs/HANDOFF-2026-11-19.md), [WORKBOARD](docs/WORKBOARD.md), [COLLABORATION](docs/COLLABORATION.md), [SECURITY](docs/SECURITY.md). Current GitHub repo `huygdv/gen-ai-experiments` is **PUBLIC**. This branch is **pilot only**, not a Cloudflare production deployment. See [private repo migration](docs/PRIVATE-REPO-MIGRATION.md).
+
 # CoupleGames — v0.4.2 UI prototype (staging only)
 
 **Production:** https://couplegames-vn.vercel.app (still v0.4.1, room creation currently unavailable because the private Blob store hit its usage limit).
