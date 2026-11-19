@@ -1,7 +1,9 @@
-# CoupleGames — Online v0.4.2
+# CoupleGames — v0.4.2 UI prototype (staging only)
 
-**Production:** https://couplegames-vn.vercel.app
-**Online lobby:** https://couplegames-vn.vercel.app/online.html
+**Production:** https://couplegames-vn.vercel.app (still v0.4.1, room creation currently unavailable because the private Blob store hit its usage limit).
+**Online UI preview:** https://tui-minh-choi-lpebfy33l-huygdvs-projects.vercel.app/online.html?demo=1
+**Infrastructure blocker:** Vercel Blob store `couplegames-room-state` has `limits-exceeded-suspended` as of 2026-11-19. New live rooms cannot be created until storage is migrated/restored. Do not claim v0.4.2 is production-released.
+**Architecture decisions:** [multi-game platform](./docs/PLATFORM-ARCHITECTURE.md), [realtime backend alternatives](./docs/ADR-REALTIME-BACKEND.md).
 
 ## What changed
 
@@ -28,7 +30,7 @@
 3. Deploy the **same** Vercel project tui-minh-choi, target production. Git auto-deploy is not configured.
 4. Verify deployment state READY and alias couplegames-vn.vercel.app before sharing.
 
-## v0.4.2 — Săn Số UX / room management (2026-11-19)
+## v0.4.2 — Staged Săn Số UX / room management (2026-11-19)
 
 - A unified sticky game HUD prevents the number target from being hidden behind the battle lanes, with compact avatars/scoreboard below.
 - Non-scoring playful reactions: 😆 Haha, 🍅 tomato on a selected rival avatar, 💗 heart. Server enforces a 2.5-second cooldown, validates target and publishes a small reaction event.
