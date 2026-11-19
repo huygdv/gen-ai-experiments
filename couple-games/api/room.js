@@ -68,7 +68,7 @@ function publicRoom(room,now){
   const copy=JSON.parse(JSON.stringify(room));
   advance(copy,now);
   return {code:copy.code,phase:copy.phase,variant:copy.variant,hostRole:copy.hostRole,
-    maxPlayers:copy.maxPlayers,players:copy.players.map(({id,name})=>({id,name})),
+    maxPlayers:copy.maxPlayers,locked:!!copy.locked,gameId:copy.gameId||'san-so',players:copy.players.map(({id,name,left})=>({id,name,left:!!left})),reactions:(copy.reactions||[]).filter(e=>now-e.at<12000),
     seed:copy.seed,startsAt:copy.startsAt,round:copy.round,
     claims:copy.claims,current:copy.current,scores:copy.scores,winner:copy.winner||0,
     battle:copy.battle,updatedAt:copy.updatedAt,version:copy.version};
@@ -105,7 +105,7 @@ async function transact(code,handler){
 export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store, max-age=0');
   res.setHeader('X-Content-Type-Options','nosniff');
-  if(req.method==='GET')return send(res,200,{ok:true,version:'0.4.1',storage:!!process.env.BLOB_READ_WRITE_TOKEN});
+  if(req.method==='GET')return send(res,200,{ok:true,version:'0.4.2',storage:!!process.env.BLOB_READ_WRITE_TOKEN});
   if(req.method!=='POST')return send(res,405,{error:'Method not allowed'});
   if(!process.env.BLOB_READ_WRITE_TOKEN)return send(res,503,{error:'Máy chủ chưa có kho dữ liệu phòng.'});
   let data;try{data=typeof req.body==='string'?JSON.parse(req.body):req.body||{};}catch(e){return send(res,400,{error:'Dữ liệu không hợp lệ.'});}
@@ -120,7 +120,7 @@ export default async function handler(req,res){
         const code=code6(),now=Date.now();
         const room={code,createdAt:now,updatedAt:now,version:1,round:1,phase:'lobby',
           variant,hostRole,hostHash:hash(credential),
-          maxPlayers:hostRole==='spectator'?2:variant==='battle'?2:3,
+          maxPlayers:hostRole==='spectator'?2:variant==='battle'?2:3,gameId:'san-so',locked:false,reactions:[],reactionSeq:0,emoteCooldown:{},
           players:hostRole==='player'?[{id:1,name:nick(data.name),keyHash:hash(credential)}]:[],
           seed:0,startsAt:0,current:1,claims:Array(101).fill(0),scores:[0,0,0],winner:0,battle:null};
         try{
@@ -136,10 +136,13 @@ export default async function handler(req,res){
     if(action==='join'){
       const credential=token();
       const result=await transact(code,(r,now)=>{
-        if(r.phase!=='lobby')return {status:409,error:'Trận đã bắt đầu; không thể vào thêm người.'};
+        if(r.phase!=='lobby')return {status:409,error:r.phase==='closed'?'Chủ phòng đã đóng phòng.':'Trận đã bắt đầu; không thể vào thêm người.'};
+        if(r.locked)return {status:409,error:'Chủ phòng đang khóa nhận người mới.'};
         if(r.players.length>=r.maxPlayers)return {status:409,error:'Phòng đã đủ người chơi.'};
-        const id=r.players.length+1;
+        const id=Array.from({length:r.maxPlayers},(_,i)=>i+1).find(i=>!r.players.some(p=>p.id===i));
+        if(!id)return {status:409,error:'Phòng đã đủ người chơi.'};
         r.players.push({id,name:nick(data.name),keyHash:hash(credential)});
+        r.players.sort((a,b)=>a.id-b.id);
         return {body:{ok:true,role:'player',token:credential,playerId:id,room:publicRoom(r,now)}};
       });
       return send(res,result.status,result.error?{error:result.error}:result.body);
@@ -153,21 +156,72 @@ export default async function handler(req,res){
       if(!role)return send(res,403,{error:'Không có quyền truy cập phòng này.'});
       return send(res,200,{ok:true,role:role.host?'host':'player',playerId:role.id,room:publicRoom(record.room,Date.now())});
     }
-    if(!['start','restart','claim'].includes(action))return send(res,400,{error:'Lệnh không hợp lệ.'});
+    if(!['start','restart','claim','leave','close','kick','lock','emote'].includes(action))return send(res,400,{error:'Lệnh không hợp lệ.'});
     const result=await transact(code,(r,now)=>{
       const who=authorized(r,credential);
       if(!who)return {status:403,error:'Phiên phòng không hợp lệ.'};
+      if(action==='leave'||action==='close'){
+        if(who.host){
+          r.phase='closed';r.locked=true;r.closedAt=now;
+          return {};
+        }
+        const p=r.players.find(p=>p.id===who.id);
+        if(!p)return {status:403,error:'Không có quyền rời phòng này.'};
+        if(r.phase==='lobby')r.players=r.players.filter(x=>x.id!==who.id);
+        else if(r.phase!=='closed'){
+          p.left=true;p.keyHash=null;
+          const active=r.players.filter(x=>!x.left);
+          if(['playing','draining'].includes(r.phase)&&active.length<=1){
+            r.phase='finished';r.winner=active.length===1?active[0].id:0;
+          }
+        }
+        return {};
+      }
+      if(action==='lock'){
+        if(!who.host)return {status:403,error:'Chỉ chủ phòng có thể khóa phòng.'};
+        if(r.phase!=='lobby')return {status:409,error:'Chỉ thay đổi khóa khi đang ở lobby.'};
+        r.locked=!!data.locked;return {};
+      }
+      if(action==='kick'){
+        if(!who.host)return {status:403,error:'Chỉ chủ phòng có thể mời người khác ra.'};
+        if(r.phase!=='lobby')return {status:409,error:'Chỉ có thể mời người chơi ra khi chưa bắt đầu.'};
+        const id=Number(data.playerId);
+        if(!Number.isInteger(id)||id<=0||(r.hostRole==='player'&&id===1))return {status:400,error:'Không thể mời người này ra.'};
+        if(!r.players.some(p=>p.id===id))return {status:404,error:'Người chơi không còn trong phòng.'};
+        r.players=r.players.filter(p=>p.id!==id);return {};
+      }
+      if(action==='emote'){
+        if(!['lobby','playing','draining','finished'].includes(r.phase))return {status:409,error:'Phòng đã đóng.'};
+        const kind=String(data.kind||'');
+        if(!['haha','tomato','heart'].includes(kind))return {status:400,error:'Biểu cảm không hợp lệ.'};
+        const to=Number(data.target);
+        if(!Number.isInteger(to)||!r.players.some(p=>p.id===to&&!p.left)||to===who.id)
+          return {status:400,error:'Vui lòng chọn một người chơi khác.'};
+        const actor=who.host?'host':String(who.id);
+        const prev=r.emoteCooldown?.[actor]||0;
+        if(now-prev<2500)return {status:429,error:'Hãy đợi 2,5 giây trước khi trêu tiếp nhé.'};
+        r.emoteCooldown=r.emoteCooldown||{};
+        r.emoteCooldown[actor]=now;
+        r.reactionSeq=(r.reactionSeq||0)+1;
+        r.reactions=(r.reactions||[]).filter(e=>now-e.at<12000).slice(-11);
+        r.reactions.push({id:r.reactionSeq,kind,from:who.id,to,at:now,round:r.round});
+        return {};
+      }
       if(action==='start'||action==='restart'){
         if(!who.host)return {status:403,error:'Chỉ chủ phòng có thể bắt đầu.'};
+        if(action==='start'&&r.phase!=='lobby')return {status:409,error:'Trận đã bắt đầu hoặc phòng đã đóng.'};
+        if(action==='restart'&&r.phase!=='finished')return {status:409,error:'Chỉ chơi lại sau khi ván trước kết thúc.'};
+        if(r.players.some(p=>p.left))return {status:409,error:'Có người đã rời phòng. Hãy tạo phòng mới để chơi lại.'};
         if(r.players.length<2)return {status:409,error:'Cần ít nhất 2 người chơi mới bắt đầu.'};
         if(r.variant==='battle'&&r.players.length!==2)return {status:409,error:'Gián Bom chỉ hỗ trợ 2 người chơi.'};
         r.phase='playing';r.round+=action==='restart'?1:0;
         r.seed=randomBytes(4).readUInt32LE(0);r.startsAt=now+2500;
-        r.current=1;r.claims=Array(101).fill(0);r.scores=[0,0,0];r.winner=0;
+        r.current=1;r.claims=Array(101).fill(0);r.scores=[0,0,0];r.winner=0;r.reactions=[];
         r.battle=r.variant==='battle'?{hp:[100,100],units:[],nextId:1,streakOwner:0,streak:0,collisions:0,tickAt:r.startsAt}:null;
         return {};
       }
       if(!who.id)return {status:403,error:'Khán giả không thể khoanh số.'};
+      if(r.players.find(p=>p.id===who.id)?.left)return {status:403,error:'Bạn đã rời trận.'};
       if(r.phase!=='playing'||now<r.startsAt)return {status:409,error:'Trận chưa bắt đầu hoặc đã kết thúc.'};
       if(r.variant==='battle')advance(r,now);
       if(r.phase!=='playing')return {status:409,error:'Trận đã kết thúc.'};
@@ -181,7 +235,7 @@ export default async function handler(req,res){
         else{
           r.phase='finished';
           const max=Math.max(...r.scores.slice(0,r.players.length));
-          const winners=r.players.filter(p=>r.scores[p.id-1]===max);
+          const winners=r.players.filter(p=>!p.left&&r.scores[p.id-1]===max);
           r.winner=winners.length===1?winners[0].id:0;
         }
       }
