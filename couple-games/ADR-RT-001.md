@@ -8,7 +8,7 @@ The v0.4.1 production client at `/online.html` uses ~350ms adaptive HTTP state p
 ## Decision
 - Use **native WebSockets on Vercel Functions** (GA since Oct 20, 2026). Deploy in Singapore alongside server-side room state.
 - Authoritative game server decides each number's owner and battle effect, monotonically sequences messages, and broadcasts a **delta** to all players and the spectator.
-- Redis or equivalent atomically shared room engine and **Redis Pub/Sub** backplane are necessary: WebSocket clients can be hosted in different Vercel Function instances. In-process broadcasting alone will lose cross-instance events.
+- Redis or equivalent atomically shared room engine and **Redis Streams (XADD / XREAD BLOCK)** as the durable cross-instance event backplane are necessary: WebSocket clients can be hosted in different Vercel Function instances. In-process broadcasting alone will lose cross-instance events.
 - Persist immutable/recoverable snapshots to Vercel Blob at a bounded cadence rather than per claim. Do not use Blob as the hot Pub/Sub bus.
 - Preserve optimistic feedback and reconcile rejected claims. WebSocket auto-reconnect with exponential backoff, `lastSeq` replay, and HTTP fallback when a socket cannot be established.
 - Battle animations are interpolated locally based on timestamped state; broadcast compact events, not every rendered frame.
@@ -22,14 +22,14 @@ No trust in client score, winner, or timestamp; validate ACL for host/spectator.
 
 ## Staged implementation
 1. `api/ws-probe.js` + `ws-lab.html` verify upgrade and 10/50-message p50/p95 latency, compare HTTP RTT. The probe does not handle live game events.
-2. Connect Redis (Singapore, production/preview) in Vercel Marketplace; verify Pub/Sub and atomic room claim across separate Vercel function instances.
+2. Connect Redis (Singapore, production/preview) in Vercel Marketplace; verify Redis Streams XADD/XREAD BLOCK, replay after reconnect and atomic Lua claim across separate Vercel function instances; use ioredis over TCP for blocking reads.
 3. Implement shared authoritative room engine and WebSocket gateway with reconnect/resume, 2/3 players and spectator, battle simulation; game client behind rollout flag.
 4. Cross-network E2E, drop/reconnect tests, 1000 simultaneous-claim simulations, server-seq assertions; record real p50/p95 of input->ack and input->remote-render.
 5. Promote only after p95 <250ms remote-render on stable Vietnam network is demonstrated (initial goal, not a guarantee). Maintain HTTP fallback and rollback.
 
 ## Security/cost
 - Validate session tokens server-side, max payload length, per-socket rate limit and room membership; never expose Blob/Redis tokens.
-- Redis, WebSocket function duration/memory and Pub/Sub messages incur service costs. Use idle timeouts and disconnect handling.
+- Redis, WebSocket function duration/memory and Stream operations incur service costs. Use idle timeouts and disconnect handling.
 - Do not keep authoritative room state only in a Function instance: Vercel does not guarantee instance affinity.
 - If Redis provisioning is blocked, retain v0.4.1 production and do not present the probe as a complete fix.
 
@@ -37,3 +37,8 @@ No trust in client score, winner, or timestamp; validate ACL for host/spectator.
 - https://vercel.com/changelog/websocket-support-is-now-generally-available
 - https://vercel.com/docs/functions/websockets
 - https://vercel.com/kb/guide/real-time-chat-websockets
+
+## Redis connection prerequisites
+- Recommended: [Upstash for Redis on Vercel](https://vercel.com/marketplace/upstash/upstash-kv) or [Redis Cloud](https://vercel.com/marketplace/redis). Attach to the existing `tui-minh-choi` project, **sin1 / Singapore**, Production + Preview.
+- Do not paste credentials into GitHub, chat or a client-side script; allow Vercel to inject environment variables. Native TCP `REDIS_URL` can support a blocking `XREAD BLOCK` stream reader; provider REST SDKs may have different subscription semantics.
+- Stream retains server sequence and replay across instances; Redis Pub/Sub alone is not a recovery log. Use bounded trim/TTL for 2h room lifetime, background snapshots to existing private Blob.
