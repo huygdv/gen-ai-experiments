@@ -1,4 +1,4 @@
-# CoupleGames — Online v0.4.0
+# CoupleGames — Online v0.4.2
 
 **Production:** https://couplegames-vn.vercel.app
 **Online lobby:** https://couplegames-vn.vercel.app/online.html
@@ -27,3 +27,21 @@
 2. Perform local/contract tests.
 3. Deploy the **same** Vercel project tui-minh-choi, target production. Git auto-deploy is not configured.
 4. Verify deployment state READY and alias couplegames-vn.vercel.app before sharing.
+
+## v0.4.2 — Săn Số UX / room management (2026-11-19)
+
+- A unified sticky game HUD prevents the number target from being hidden behind the battle lanes, with compact avatars/scoreboard below.
+- Non-scoring playful reactions: 😆 Haha, 🍅 tomato on a selected rival avatar, 💗 heart. Server enforces a 2.5-second cooldown, validates target and publishes a small reaction event.
+- Lightweight streak highlight after 3 consecutive numbers, without changing authoritative scoring.
+- Explicit online room actions: leave, host close, host lock/unlock, lobby kick and backfill to stable seat IDs; closing invalidates new invites. Refresh is not treated as leaving.
+- Dedicated [platform architecture](./docs/PLATFORM-ARCHITECTURE.md) for a shared social shell and future Caro/Tank games.
+- Real-time gameplay migration remains staged on [draft PR #1](https://github.com/huygdv/gen-ai-experiments/pull/1) and is **not** claimed as production-ready; HTTP polling is still the fallback/current path.
+
+## Quality checklist
+
+- [ ] Real-phone 2-player online trial on different networks
+- [ ] Real-phone/tablet 3-player Classic + spectator
+- [ ] Tablet landscape 1024x768 and phone portrait 390x844 visual check
+- [ ] Room create -> invite -> join -> lock/unlock -> kick -> rejoin -> start -> rematch -> leave -> close
+- [ ] Reactions rate limit + targets + spectators
+- [ ] TCP WebSocket probe + Redis/Stream multi-instance proof before replacing HTTP polling
