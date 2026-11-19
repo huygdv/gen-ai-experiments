@@ -1,0 +1,51 @@
+name: CoupleGames Cloudflare Free-Tier MVP
+on:
+  push:
+    branches: [couple-games-cf-do-mvp]
+    paths:
+      - 'couple-games/cloudflare/**'
+      - '.github/workflows/couplegames-cloudflare.yml'
+  pull_request:
+    paths:
+      - 'couple-games/cloudflare/**'
+      - '.github/workflows/couplegames-cloudflare.yml'
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Deploy Cloudflare Worker to the connected account?'
+        type: boolean
+        default: false
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: couple-games/cloudflare
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: couple-games/cloudflare/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run check
+      - run: npx wrangler deploy --dry-run
+
+  deploy:
+    needs: test
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: couple-games/cloudflare
+          command: deploy
