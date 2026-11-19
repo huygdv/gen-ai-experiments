@@ -58,9 +58,39 @@ h1{font-size:clamp(30px,5vw,51px);letter-spacing:-2px;margin:25px 0 7px}h1 span{
 #toast.visible{opacity:1;transform:translate(-50%,0)}
 @media(max-width:600px){.wrap{padding:0 12px 35px}header small{display:none}.card{padding:19px 16px}.options{grid-template-columns:1fr}h1{font-size:36px}.paper{padding:15px 6px 9px 30px}.paper::before{left:24px}#board{aspect-ratio:.9}.num{font-size:calc(11px*var(--size))}.score b{font-size:24px}.nowbox strong{font-size:28px}.statusbar{top:2px}.code{font-size:31px}.card .actions>*{min-width:120px}}
 @media(min-width:900px) and (max-height:800px){h1{margin:8px 0 4px;font-size:32px}.desc{margin-bottom:10px}.paper{padding-top:8px}#board{aspect-ratio:1.45}.scorebar{margin:6px 0}.score{padding:3px}.score b{font-size:23px}}
+
+.game-hud{position:sticky;top:max(4px,env(safe-area-inset-top));z-index:50;display:flex;flex-direction:column;gap:5px;isolation:isolate;margin:3px auto 10px;max-width:940px}
+.game-hud .statusbar{position:relative;top:auto;z-index:auto;padding:7px 11px;border-radius:12px;min-height:55px}
+.game-hud .scorebar{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:0}
+.game-hud .score{display:flex;align-items:center;text-align:left;gap:7px;padding:4px 7px;min-height:48px;position:relative;overflow:visible}
+.score .avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:22px;flex:none;background:#fce7ec;border:1px solid #f1c5cc;position:relative}
+.score:nth-child(2) .avatar{background:#e7f1f9;border-color:#b5d7ee}.score:nth-child(3) .avatar{background:#fff4d8;border-color:#eed59c}
+.score .score-info{min-width:0;flex:1}.score .score-name{font-size:10px;font-weight:700;color:#736e6f;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.score .score-info b{font-size:23px;line-height:1.12;display:block}
+.score.selectable{cursor:pointer}.score.selectable:hover{background:#fff8e9}
+.game-hud .battlebox{position:relative;top:auto;z-index:auto;margin:0;max-width:none;padding:7px 10px}
+.game-hud .lanes{margin-top:5px}.game-hud .lane{height:24px}
+.game-hud .nowbox{display:flex;align-items:center;gap:7px;flex:none;min-width:0;text-align:left}
+.game-hud .nowbox small{font-size:9px;max-width:42px;line-height:1.3}
+.game-hud .nowbox strong{font-size:34px;line-height:1;font-variant-numeric:tabular-nums}
+.hud-tips{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;text-align:right}
+.game-hud #gameMessage{font-size:10px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.game-hud .net-status{font-size:9px;text-align:right;min-width:0}
+.hud-button{padding:5px 8px;min-height:34px;white-space:nowrap;border-radius:9px;font-size:11px}
+.emote-tray{position:absolute;z-index:90;right:0;top:57px;display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:10px;border:1px solid #eadac8;box-shadow:0 11px 27px #6b4c3a26;background:#fffefbf8;border-radius:12px;max-width:min(100%,525px)}
+.emote-tray label{font-size:10px}.emote-tray select{max-width:125px;min-height:37px;border:1px solid #ddd2c5;border-radius:8px;padding:5px;color:#655a56;background:white}
+.emote-tray button{border:1px solid #e8dad1;background:#fff6f4;min-height:37px;padding:4px 9px;border-radius:8px;font-size:11px;font-weight:700}
+.emote-tray button:hover{background:#ffe9df}.emote-note{font-size:9px;color:#8d7e74}
+.reaction-pop{position:absolute;z-index:4;top:-14px;left:6px;font-size:32px;pointer-events:none;text-shadow:0 2px 5px #79635155;animation:cg-pop 1.4s ease-out forwards}
+.reaction-pop.tomato{font-size:39px}
+@keyframes cg-pop{0%{transform:translate(-70px,12px) rotate(-30deg) scale(.4);opacity:0}27%{transform:translate(0,0) rotate(12deg) scale(1.4);opacity:1}54%{transform:translate(0,0) rotate(-10deg) scale(1.2);opacity:1}100%{transform:translate(0,-30px) scale(.7);opacity:0}}
+.roommeta{color:#7d6f67;font-size:11px;margin:12px 0 3px}
+.person{display:inline-flex;align-items:center;gap:5px}.kick{border:0;background:#fff0ee;color:#ad5860;border-radius:50%;width:24px;height:24px;font-size:12px;display:grid;place-items:center}
+@media(max-width:600px){.game-hud{top:max(2px,env(safe-area-inset-top))}.game-hud .nowbox strong{font-size:30px}.game-hud .statusbar{gap:6px;padding:6px 7px}.game-hud #gameMessage{font-size:9px}.hud-button{font-size:10px;padding:4px 6px}.game-hud .score{min-height:42px;gap:4px;padding:4px}.score .avatar{width:28px;height:28px;font-size:18px}.score .score-name{font-size:9px}.score .score-info b{font-size:20px}.emote-tray{left:0;right:0;top:52px}.emote-note{display:none}}
+@media(max-height:550px) and (orientation:landscape){.game-hud .lanes{display:none}.game-hud .statusbar{min-height:43px;padding:4px 7px}.game-hud .score{min-height:37px}.score .avatar{width:25px;height:25px;font-size:18px}.game-hud .nowbox strong{font-size:26px}}
+@media(prefers-reduced-motion:reduce){.reaction-pop{animation:none;opacity:1;top:-14px}}
 </style></head>
 <body><div class="wrap">
-<header><a href="/">♡ couplegames</a><small>Online v0.4.1 · Fast Sync</small><button id="fullBtn" class="secondary">⛶ Toàn màn hình</button></header>
+<header><a href="/">♡ couplegames</a><small>Online v0.4.2 · Playful Rooms</small><button id="fullBtn" class="secondary">⛶ Toàn màn hình</button></header>
 <section id="setup">
 <h1>Hai đứa, ba đứa, <span>cùng chơi!</span></h1><p class="desc">Khoanh số từ 01 đến 100. Ai tìm đúng trước sẽ ghi điểm. Chủ phòng có thể ngồi xem và cổ vũ ♡</p>
 <div class="card" id="createCard"><h2>Tạo phòng mới ✦</h2>
@@ -85,15 +115,32 @@ h1{font-size:clamp(30px,5vw,51px);letter-spacing:-2px;margin:25px 0 7px}h1 span{
 <div class="card"><div class="code" id="displayCode">······</div>
 <div class="actions"><button class="secondary" id="copyCode">Sao chép mã</button><button class="secondary" id="shareLink">Chia sẻ link mời</button></div>
 <div class="pills" id="lobbyPlayers"></div>
+<div id="roomMeta" class="roommeta"></div>
+<div class="actions" id="hostRoomActions"><button id="lockRoomBtn" class="secondary">🔓 Khóa nhận người mới</button></div>
 <div id="lobbyInfo" class="notice">Đang chờ các bạn khác vào phòng...</div>
-<div class="actions"><button class="primary" id="startBtn">Bắt đầu trận ✨</button><button class="secondary" id="returnBtn">← Trang đầu</button></div>
+<div class="actions"><button class="primary" id="startBtn">Bắt đầu trận ✨</button><button class="secondary" id="returnBtn">🚪 Rời / đóng phòng</button></div>
 </div></section>
 <section id="gameScreen" class="hidden">
+<div id="gameHud" class="game-hud">
+<div class="statusbar">
+  <div class="nowbox"><small>SỐ CẦN TÌM</small><strong id="next">01</strong></div>
+  <div class="hud-tips"><div id="gameMessage">Ai khoanh nhanh nhất được điểm ♡</div><small id="netStatus" class="net-status">⏱ Đang đo...</small></div>
+  <button id="emoteToggle" class="secondary hud-button" aria-label="Mở biểu cảm trêu bạn chơi" aria-expanded="false">😝 Trêu</button>
+  <button id="leaveGameBtn" class="secondary hud-button" title="Rời hoặc đóng phòng" aria-label="Rời phòng">🚪</button>
+</div>
+<div class="scorebar" id="scores"></div>
+<div id="emoteTray" class="emote-tray hidden" aria-label="Biểu cảm">
+  <label for="emoteTarget">Gửi đến</label><select id="emoteTarget"></select>
+  <button type="button" data-emote="haha" title="Trêu đối thủ bằng biểu cảm cười">😆 Haha</button>
+  <button type="button" data-emote="tomato" title="Ném cà chua vui nhộn">🍅 Cà chua</button>
+  <button type="button" data-emote="heart" title="Thả tim">💗 Tim</button>
+  <span class="emote-note">2,5 giây / lần</span>
+</div>
 <div id="battleDock" class="battlebox hidden"><div class="battlehead"><span>🪳 Gián Bom</span><span id="hp1">HP 100</span><div class="hpbar"><i id="hpBar1" style="width:100%"></i></div><span>⚔️</span><div class="hpbar right"><i id="hpBar2" style="width:100%"></i></div><span id="hp2">100 HP</span><button id="toggleBattle" title="Thu gọn chiến trường">⌃</button></div><div id="lanes" class="lanes"><div class="lane"></div><div class="lane"></div><div class="lane"></div></div></div>
-<div class="statusbar"><div class="nowbox"><small>SỐ CẦN TÌM</small><strong id="next">01</strong></div><div id="gameMessage">Ai khoanh nhanh nhất được điểm ♡</div><small id="netStatus" class="net-status">⏱ Đang đo...</small></div>
-<div class="scorebar" id="scores"></div><div class="progress"><i id="progress"></i></div>
+</div><!-- /gameHud -->
+<div class="progress"><i id="progress"></i></div>
 <div class="paper"><div class="paperhead"><span class="wobbly"></span><span>Trang vở tụi mình ♡</span></div><div id="board" role="group" aria-label="Bảng 100 số"></div></div>
-<div id="endbar" class="hidden"><h2 id="winnerText">Hết ván!</h2><div class="actions"><button id="againBtn" class="primary">↻ Chơi lại</button><button class="secondary" id="homeBtn">← Trang đầu</button></div></div>
+<div id="endbar" class="hidden"><h2 id="winnerText">Hết ván!</h2><div class="actions"><button id="againBtn" class="primary">↻ Chơi lại</button><button class="secondary" id="homeBtn">🚪 Rời / đóng phòng</button></div></div>
 </section>
 <div id="notice" class="notice hidden" role="alert"></div>
 </div><div id="toast" role="status"></div>
