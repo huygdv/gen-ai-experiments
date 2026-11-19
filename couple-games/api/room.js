@@ -244,6 +244,9 @@ export default async function handler(req,res){
     return send(res,result.status,result.error?{error:result.error,...(result.body||{})}:result.body);
   }catch(e){
     console.error('couplegames-room',e?.name,e?.message);
+    if(/suspend|quota|limit.*exceed/i.test(String(e?.message||''))){
+      return send(res,503,{error:'Phòng online tạm gián đoạn do kho lưu trữ đạt giới hạn. Vui lòng thử bản demo giao diện hoặc quay lại khi hạ tầng realtime được thay thế.'});
+    }
     return send(res,503,{error:'Kết nối máy chủ phòng gặp sự cố. Hãy thử lại.'});
   }
 }
