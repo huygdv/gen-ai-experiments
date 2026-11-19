@@ -13,6 +13,7 @@ git clone --branch couple-games-cf-do-mvp --single-branch https://github.com/huy
 New-Item -ItemType Directory -Force couplegames-private | Out-Null
 Copy-Item -Path cg-source/couple-games/* -Destination couplegames-private -Recurse -Force
 # Note: hidden files may need explicit copying, but NEVER copy .git, .env or credentials.
+Copy-Item cg-source/couple-games/cloudflare/.gitignore couplegames-private/cloudflare/.gitignore -Force
 New-Item -ItemType Directory -Force couplegames-private/.github/workflows | Out-Null
 Copy-Item cg-source/.github/workflows/couplegames-cloudflare.yml couplegames-private/.github/workflows/
 Set-Location couplegames-private
