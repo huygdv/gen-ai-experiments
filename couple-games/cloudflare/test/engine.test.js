@@ -61,7 +61,7 @@ test('no duplicate score, even after 100 rapid alternating claims',()=>{
  for(let n=1;n<=100;n++){
    const who=n%2?host:guest;
    assert.equal(apply(room,who,'claim',{number:n},4000+n).event.owner,who.id);
-   assert.equal(apply(room,who,'claim',{number:n},4000+n).error.code,'CLAIM_CONFLICT');
+   assert.equal(apply(room,who,'claim',{number:n},4000+n).error.code,n===100?'NOT_PLAYING':'CLAIM_CONFLICT');
  }
  assert.equal(room.phase,'finished');
  assert.equal(room.scores[0]+room.scores[1],100);
