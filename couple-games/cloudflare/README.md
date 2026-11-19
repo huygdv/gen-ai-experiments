@@ -42,6 +42,20 @@ Unlike a free allowance on a paid account, **exhausting a Free quota can stop fu
 - Live local test: host spectator creates room; guests A & B join, all three WebSockets receive both `game.started` and `number.claimed` events; loser gets 409; emote cooldown returns 429; closing room blocks late joins with 410.
 - In the **same local test runtime**, remote broadcast took ~11ms. **This is not measured cross-network RTT or production performance.**
 
+## Easiest connection: Cloudflare Workers Builds (GitHub integration)
+No credential pasted in ChatGPT, no new Vercel storage store, no paid tier required for the initial test.
+
+1. Cloudflare dashboard → **Workers & Pages** → create a **Worker** from a Git repository, connect GitHub repository `huygdv/gen-ai-experiments`.
+2. Set **production branch** to `couple-games-cf-do-mvp` for an isolated pilot. In Cloudflare **Root directory**, enter `couple-games/cloudflare`.
+3. Set Worker name `couplegames-rooms` to match `wrangler.jsonc`, **Build command** `npm install --no-audit --no-fund && npm run check`, **Deploy command** `npx wrangler deploy`.
+4. Leave the Durable Object migration `v1: new_sqlite_classes: [CoupleRoom]` unchanged on first deploy. Worker static assets ship with the Worker automatically.
+5. Verify `https://<worker-subdomain>.workers.dev/api/health` and then `/online.html`. Run live mobile tests (invite/create/join, claim push, spectator, reconnect, close). Keep `couplegames-vn.vercel.app` unchanged until this pilot passes.
+6. Configure Cloudflare Free quota and build alerts, and apply a rate-limiting rule and/or Turnstile to the **create room** endpoint before public promotion.
+
+Git-integrated Workers Builds deploy on push to the configured production branch. For a controlled manual path, the GitHub workflow `.github/workflows/couplegames-cloudflare.yml` is also included; it requires repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, so the Git integration is simpler for the first setup.
+
+Official Git integration docs: https://developers.cloudflare.com/workers/ci-cd/builds/git-integration/github-integration/ and monorepo configuration: https://developers.cloudflare.com/workers/ci-cd/builds/configuration/.
+
 ## Deployment prerequisites
 1. Cloudflare account + Workers Free with Durable Objects SQLite available, and account-level quota review.
 2. A scoped Cloudflare API token with Worker scripts edit/deploy and DO rights, stored as **GitHub Actions Secret or CLI login**, never in source code or chat.
