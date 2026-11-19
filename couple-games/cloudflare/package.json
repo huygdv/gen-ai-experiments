@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "wrangler dev --local",
     "check": "node --test test/*.test.js",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "test:smoke": "node test/smoke.mjs",
+    "check:all": "npm run check && npm run build:check",
+    "build:check": "wrangler deploy --dry-run"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"
