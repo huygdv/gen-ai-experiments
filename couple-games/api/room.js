@@ -234,7 +234,7 @@ export default async function handler(req,res){
         if(r.variant==='battle')r.phase='draining';
         else{
           r.phase='finished';
-          const max=Math.max(...r.scores.slice(0,r.players.length));
+          const max=Math.max(...r.players.filter(p=>!p.left).map(p=>r.scores[p.id-1]));
           const winners=r.players.filter(p=>!p.left&&r.scores[p.id-1]===max);
           r.winner=winners.length===1?winners[0].id:0;
         }
