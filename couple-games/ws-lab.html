@@ -1,0 +1,23 @@
+<!doctype html><html lang="vi"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CoupleGames | WebSocket Lab</title>
+<style>body{font-family:system-ui,sans-serif;background:#f9f6f2;color:#30363b;max-width:660px;padding:28px;margin:auto}h1{font-size:28px}p{line-height:1.7}button{background:#c45f70;color:#fff;border:0;border-radius:9px;padding:12px 20px;font:inherit;cursor:pointer}button:disabled{opacity:.45}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:20px 0}.stat{background:#fff;border:1px solid #e7ddd1;border-radius:10px;padding:14px;text-align:center}.stat strong{display:block;font-size:25px}pre{white-space:pre-wrap;word-break:break-word;background:#f0ebe4;padding:15px;border-radius:9px;font-size:12px}small{color:#666}</style>
+</head><body><h1>🧪 CoupleGames · WebSocket Lab</h1>
+<p>Kiểm tra kết nối socket trực tiếp tới Vercel và đo RTT từ thiết bị hiện tại. Đây là <b>phép thử transport</b>, không phải game realtime đã nâng cấp.</p>
+<button id="run">Chạy 20 lần ping</button><div class="stats"><div class="stat"><strong id="median">—</strong><small>Median RTT</small></div><div class="stat"><strong id="p95">—</strong><small>p95 RTT</small></div><div class="stat"><strong id="loss">—</strong><small>Không phản hồi</small></div></div>
+<pre id="log">Chưa bắt đầu.</pre><p><a href="/">← Về game</a></p>
+<script>
+(()=>{const $=id=>document.getElementById(id);let runId=0;
+function render(label,value){$(label).textContent=value;}
+function stats(samples,missed){const sorted=samples.slice().sort((a,b)=>a-b);render('median',sorted.length?Math.round(sorted[Math.floor(sorted.length/2)])+'ms':'—');render('p95',sorted.length?Math.round(sorted[Math.min(sorted.length-1,Math.ceil(sorted.length*.95)-1)])+'ms':'—');render('loss',missed+' / 20');}
+$('run').onclick=async()=>{const id=++runId;const btn=$('run');btn.disabled=true;$('log').textContent='Đang kết nối...';const samples=[];let missed=0;const started=new Map();let seq=0,timer=null;const url=(location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/api/ws-probe';
+let socket;try{socket=new WebSocket(url);}catch(e){$('log').textContent='WebSocket constructor lỗi: '+e.message;btn.disabled=false;return;}
+const stop=(reason)=>{clearInterval(timer);try{socket.close()}catch(_){}if(id!==runId)return;stats(samples,missed);$('log').textContent=reason+'\nMẫu ('+samples.length+'): '+samples.map(x=>Math.round(x)).join(', ')+'ms';btn.disabled=false};
+const timeout=setTimeout(()=>{missed=20-samples.length;stop('Hết thời gian: socket không phản hồi đủ.')},16000);
+socket.onopen=()=>{$('log').textContent='Đã mở WebSocket. Đang gửi ping...';timer=setInterval(()=>{if(seq>=20){clearInterval(timer);return}seq++;started.set(seq,performance.now());socket.send(JSON.stringify({type:'ping',seq}));},180);};
+socket.onmessage=e=>{try{const msg=JSON.parse(e.data);if(msg.type==='ready'){$('log').textContent='Socket đã sẵn sàng; region '+msg.region;return;}if(msg.type==='pong'&&started.has(msg.seq)){samples.push(performance.now()-started.get(msg.seq));started.delete(msg.seq);stats(samples,missed);if(samples.length===20){clearTimeout(timeout);stop('Thử nghiệm thành công.');}}}catch(err){}};
+socket.onerror=()=>{clearTimeout(timeout);stop('WebSocket gặp lỗi. Có thể route hoặc WebSocket upgrade chưa hoạt động.')};
+socket.onclose=()=>{if(samples.length!==20){clearTimeout(timeout);missed=20-samples.length;stop('Socket đóng sớm.');}};
+};
+})();
+</script></body></html>
