@@ -74,7 +74,7 @@ h1{font-size:clamp(30px,5vw,51px);letter-spacing:-2px;margin:25px 0 7px}h1 span{
 .game-hud .nowbox strong{font-size:34px;line-height:1;font-variant-numeric:tabular-nums}
 .hud-tips{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;text-align:right}
 .game-hud #gameMessage{font-size:10px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.game-hud .net-status{font-size:9px;text-align:right;min-width:0}
+.game-hud .net-status{font-size:9px;text-align:right;min-width:0}.streak-tag{color:#ab6d2d;font-size:10px;font-weight:800;text-align:right;white-space:nowrap}
 .hud-button{padding:5px 8px;min-height:34px;white-space:nowrap;border-radius:9px;font-size:11px}
 .emote-tray{position:absolute;z-index:90;right:0;top:57px;display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:10px;border:1px solid #eadac8;box-shadow:0 11px 27px #6b4c3a26;background:#fffefbf8;border-radius:12px;max-width:min(100%,525px)}
 .emote-tray label{font-size:10px}.emote-tray select{max-width:125px;min-height:37px;border:1px solid #ddd2c5;border-radius:8px;padding:5px;color:#655a56;background:white}
@@ -124,7 +124,7 @@ h1{font-size:clamp(30px,5vw,51px);letter-spacing:-2px;margin:25px 0 7px}h1 span{
 <div id="gameHud" class="game-hud">
 <div class="statusbar">
   <div class="nowbox"><small>SỐ CẦN TÌM</small><strong id="next">01</strong></div>
-  <div class="hud-tips"><div id="gameMessage">Ai khoanh nhanh nhất được điểm ♡</div><small id="netStatus" class="net-status">⏱ Đang đo...</small></div>
+  <div class="hud-tips"><div id="gameMessage">Ai khoanh nhanh nhất được điểm ♡</div><small id="streakTag" class="streak-tag hidden"></small><small id="netStatus" class="net-status">⏱ Đang đo...</small></div>
   <button id="emoteToggle" class="secondary hud-button" aria-label="Mở biểu cảm trêu bạn chơi" aria-expanded="false">😝 Trêu</button>
   <button id="leaveGameBtn" class="secondary hud-button" title="Rời hoặc đóng phòng" aria-label="Rời phòng">🚪</button>
 </div>
@@ -298,6 +298,11 @@ function renderGame(){
  const until=Math.ceil((r.startsAt-now)/1000),active=r.phase==='playing'&&until<=0;
  $('next').textContent=r.current<=100?String(r.current).padStart(2,'0'):'♡';
  $('progress').style.width=(r.current-1)+'%';
+ const lastNumber=Math.min(100,r.current-1),owner=r.claims[lastNumber]||0;
+ let streak=0;for(let n=lastNumber;n>=1&&r.claims[n]===owner&&owner>0;n--)streak++;
+ const streakTag=$('streakTag'),leader=r.players.find(p=>p.id===owner);
+ streakTag.classList.toggle('hidden',streak<3);
+ if(streak>=3)streakTag.textContent='🔥 '+(leader?.name||'Đối thủ')+' · '+streak+' số liên tiếp';
  $('netStatus').textContent=me.rtt?'Phản hồi ~'+me.rtt+'ms':'⏱ Kết nối...';
  $('gameMessage').textContent=until>0?'Bắt đầu sau '+until+' giây...':r.phase==='finished'?'Trận đã kết thúc!':r.phase==='draining'?'Đợi gián bom cuối tới đích...':me.playerId===0?'👀 Bạn đang xem trận đấu':me.pending.length?'✓ Đang xác nhận '+me.pending.length+' số...':'Ai tìm đúng trước sẽ ghi điểm ♡';
  const scores=$('scores');
