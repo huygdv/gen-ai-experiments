@@ -132,7 +132,7 @@ const stub=(env,code)=>env.ROOMS.get(env.ROOMS.idFromName(code));
 const internal=(target,path,body)=>target.fetch(new Request('https://internal/'+path,{
   method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)
 }));
-export default {
+const ROUTER = {
   async fetch(request,env){
     const url=new URL(request.url),origin=request.headers.get('Origin')||'';
     const allowed=String(env.ALLOWED_ORIGIN||'').replace(/\/$/,'');
@@ -176,4 +176,22 @@ export default {
     if(env.ASSETS)return env.ASSETS.fetch(request);
     return fail(404,'NOT_FOUND','Không tìm thấy đường dẫn');
   }
+};
+
+// One explicit Vercel origin may call the same API; browser tokens are not in URLs.
+export default {
+ async fetch(request,env){
+  const response=await ROUTER.fetch(request,env);
+  if(response.status===101)return response;
+  const origin=request.headers.get('Origin')||'';
+  if(origin&&origin===String(env.ALLOWED_ORIGIN||'').replace(/\/$/,'')){
+   const headers=new Headers(response.headers);
+   headers.set('Access-Control-Allow-Origin',origin);
+   headers.set('Access-Control-Allow-Headers','Content-Type');
+   headers.set('Access-Control-Allow-Methods','GET,POST,OPTIONS');
+   headers.set('Vary','Origin');
+   return new Response(response.body,{status:response.status,headers});
+  }
+  return response;
+ }
 };
