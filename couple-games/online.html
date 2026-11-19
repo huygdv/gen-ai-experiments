@@ -147,7 +147,7 @@ h1{font-size:clamp(30px,5vw,51px);letter-spacing:-2px;margin:25px 0 7px}h1 span{
 <script>
 (()=>{'use strict';
 const $=id=>document.getElementById(id),API='/api/room';
-const me={code:'',token:'',role:'',playerId:0,room:null,serverRoom:null,busy:false,timer:null,pollGeneration:0,pollInFlight:false,pollFailures:0,pending:[],sending:false,rtt:0,clockOffset:0,boardSeed:0,round:0,joinPending:false,lastReactionId:null,lastEmoteSendAt:0,emoteBusy:false};
+const me={code:'',token:'',role:'',playerId:0,room:null,serverRoom:null,busy:false,timer:null,pollGeneration:0,pollInFlight:false,pollFailures:0,pending:[],sending:false,rtt:0,clockOffset:0,boardSeed:0,round:0,joinPending:false,lastReactionId:null,lastEmoteSendAt:0,emoteBusy:false,demo:false};
 let toastTimer=null;
 function showToast(message){const t=$('toast');t.textContent=message;t.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('visible'),3000);}
 function notice(message){$('notice').textContent=message;$('notice').classList.remove('hidden');$('notice').classList.add('error');showToast(message);}
@@ -220,6 +220,14 @@ function consumeReactions(r){
  me.lastReactionId=Math.max(me.lastReactionId,max);
 }
 async function sendEmote(kind){
+ if(me.demo){
+   const to=Number($('emoteTarget').value),now=Date.now();
+   if(!to)return;
+   if(now-me.lastEmoteSendAt<2500){showToast('Mỗi biểu cảm cách nhau 2,5 giây nhé!');return;}
+   me.lastEmoteSendAt=now;showReaction({kind,to});
+   showToast('🎮 Đây là bản demo giao diện, không gửi qua mạng.');
+   return;
+ }
  if(!me.code||!me.token||me.emoteBusy)return;
  const target=Number($('emoteTarget').value);
  if(!target){showToast('Chưa có đối thủ để trêu ♡');return;}
@@ -245,6 +253,7 @@ async function kickPlayer(id,name){
  catch(e){notice(e.message);}
 }
 async function leaveRoom(){
+ if(me.demo){home();return;}
  if(!me.code||!me.token){home();return;}
  const closing=me.role==='host';
  if(me.room?.phase==='closed'){home();return;}
@@ -303,7 +312,7 @@ function renderGame(){
  const streakTag=$('streakTag'),leader=r.players.find(p=>p.id===owner);
  streakTag.classList.toggle('hidden',streak<3);
  if(streak>=3)streakTag.textContent='🔥 '+(leader?.name||'Đối thủ')+' · '+streak+' số liên tiếp';
- $('netStatus').textContent=me.rtt?'Phản hồi ~'+me.rtt+'ms':'⏱ Kết nối...';
+ $('netStatus').textContent=me.demo?'🎮 DEMO offline':(me.rtt?'Phản hồi ~'+me.rtt+'ms':'⏱ Kết nối...');
  $('gameMessage').textContent=until>0?'Bắt đầu sau '+until+' giây...':r.phase==='finished'?'Trận đã kết thúc!':r.phase==='draining'?'Đợi gián bom cuối tới đích...':me.playerId===0?'👀 Bạn đang xem trận đấu':me.pending.length?'✓ Đang xác nhận '+me.pending.length+' số...':'Ai tìm đúng trước sẽ ghi điểm ♡';
  const scores=$('scores');
  const curr=Array.from(scores.children).map(x=>x.dataset.playerId);
@@ -441,6 +450,11 @@ async function sendQueuedClaims(){
  }
 }
 function claim(n,element){
+ if(me.demo){
+   const r=me.room;if(!r||r.phase!=='playing')return;
+   if(n!==r.current){element.classList.remove('wrong');void element.offsetWidth;element.classList.add('wrong');return;}
+   demoClaim(1);return;
+ }
  const r=me.room;
  if(!r||me.busy||me.playerId===0||r.phase!=='playing'||Date.now()+me.clockOffset<r.startsAt)return;
  if(n!==r.current){element.classList.remove('wrong');void element.offsetWidth;element.classList.add('wrong');return;}
@@ -449,6 +463,17 @@ function claim(n,element){
  me.room=overlayPending(me.serverRoom||r);
  renderGame();
  void sendQueuedClaims();
+}
+function demoClaim(id){
+ if(!me.demo||me.room?.phase!=='playing')return;
+ const r=me.room,n=r.current,copy={...r,claims:r.claims.slice(),scores:r.scores.slice(),current:n+1,version:r.version+1};
+ copy.claims[n]=id;copy.scores[id-1]++;
+ if(copy.current>100){
+   copy.phase='finished';const mx=Math.max(...copy.scores.slice(0,3));
+   const winners=copy.players.filter(p=>copy.scores[p.id-1]===mx);
+   copy.winner=winners.length===1?winners[0].id:0;
+ }
+ me.room=copy;me.serverRoom=copy;renderGame();
 }
 async function create(){
  if(me.busy)return;me.busy=true;busy($('createBtn'),true);
@@ -483,8 +508,16 @@ for(const btn of document.querySelectorAll('[data-emote]'))btn.addEventListener(
 
 window.addEventListener('beforeunload',()=>{me.pollGeneration++;clearTimeout(me.timer);});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&me.code)refresh();});
-const initial=new URLSearchParams(location.search).get('room');
-if(initial){$('roomCode').value=initial.toUpperCase();$('createCard').classList.add('hidden');const saved=getStored(initial.toUpperCase());if(saved){$('guestName').value='Đang vào lại phòng...';join();}}
+const params=new URLSearchParams(location.search),initial=params.get('room');
+if(params.get('demo')==='1'){
+ me.demo=true;me.code='DEMO42';me.token='demo';me.role='host';me.playerId=1;
+ sync({code:me.code,hostRole:'player',variant:'classic',phase:'playing',maxPlayers:3,
+   players:[{id:1,name:'Bạn'},{id:2,name:'Cáo Nhanh'},{id:3,name:'Mèo Lém'}],
+   seed:20261119,startsAt:Date.now()-1500,current:1,round:1,
+   scores:[0,0,0],claims:Array(101).fill(0),winner:0,battle:null,reactions:[],version:1});
+ showToast('🎮 Bản thử giao diện — không chơi online');
+ setInterval(()=>{if(me.demo&&me.room?.phase==='playing'&&Math.random()<.48)demoClaim(Math.random()<.5?2:3);},1700);
+}else if(initial){$('roomCode').value=initial.toUpperCase();$('createCard').classList.add('hidden');const saved=getStored(initial.toUpperCase());if(saved){$('guestName').value='Đang vào lại phòng...';join();}}
 window.__coupleOnline={me,rng,buildBoard,renderGame,claim,refresh,sync,overlayPending,sendQueuedClaims,pollDelay,sendEmote,leaveRoom,toggleRoomLock};
 })();
 </script></body></html>
